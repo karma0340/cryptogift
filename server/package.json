@@ -1,0 +1,23 @@
+{
+  "name": "cryptogift-server",
+  "version": "1.0.0",
+  "description": "CryptoGift API Server - Crypto to Gift Card Marketplace",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["crypto", "gift-cards", "marketplace"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.9.0",
+    "morgan": "^1.10.0",
+    "uuid": "^11.0.0"
+  }
+}

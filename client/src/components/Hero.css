@@ -1,0 +1,334 @@
+.hero {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding-top: var(--nav-height);
+}
+
+/* Animated background */
+.hero__bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.hero__orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.25;
+    animation: float 8s ease-in-out infinite;
+}
+
+.hero__orb--1 {
+    width: 500px;
+    height: 500px;
+    background: var(--accent-green);
+    top: -10%;
+    right: -10%;
+}
+
+.hero__orb--2 {
+    width: 400px;
+    height: 400px;
+    background: var(--accent-cyan);
+    bottom: -10%;
+    left: -10%;
+    animation-delay: 2s;
+}
+
+.hero__orb--3 {
+    width: 300px;
+    height: 300px;
+    background: var(--accent-purple);
+    top: 40%;
+    left: 40%;
+    animation-delay: 4s;
+}
+
+.hero__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+}
+
+/* Content */
+.hero__content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 24px;
+    width: 100%;
+}
+
+.hero__badge {
+    margin-bottom: 24px;
+}
+
+.hero__title {
+    font-family: var(--font-heading);
+    font-size: clamp(2.2rem, 6vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 24px;
+    letter-spacing: -2px;
+    word-break: break-word;
+}
+
+.hero__title-accent {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero__title-accent2 {
+    background: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero__subtitle {
+    font-size: clamp(0.95rem, 2.5vw, 1.25rem);
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin-bottom: 40px;
+    line-height: 1.7;
+    padding: 0 8px;
+}
+
+.hero__actions {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Stats */
+.hero__stats {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    padding: 24px 40px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(20px);
+    margin-bottom: 40px;
+}
+
+.hero__stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.hero__stat-value {
+    font-family: var(--font-heading);
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    font-weight: 700;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero__stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.hero__stat-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border-color);
+}
+
+/* Floating icons */
+.hero__floating {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.hero__float-icon {
+    position: absolute;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    animation: float 6s ease-in-out infinite;
+    opacity: 0.6;
+}
+
+.hero__float-icon--btc {
+    top: 18%;
+    left: 6%;
+    color: #F7931A;
+}
+
+.hero__float-icon--eth {
+    top: 22%;
+    right: 8%;
+    color: #627EEA;
+    animation-delay: 1.5s;
+}
+
+.hero__float-icon--usdt {
+    bottom: 28%;
+    left: 10%;
+    color: #26A17B;
+    animation-delay: 3s;
+}
+
+.hero__float-icon--sol {
+    bottom: 32%;
+    right: 6%;
+    color: #9945FF;
+    animation-delay: 4.5s;
+}
+
+/* Trust badges */
+.hero__trust {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.hero__trust-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+.hero__trust-icon {
+    color: var(--accent-green);
+    font-size: 1.1rem;
+}
+
+/* ===== TABLET ===== */
+@media (max-width: 1024px) {
+    .hero__float-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
+    }
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+    .hero {
+        min-height: auto;
+        padding-top: calc(var(--nav-height) + 20px);
+        padding-bottom: 40px;
+    }
+
+    .hero__content {
+        padding: 40px 16px;
+    }
+
+    .hero__title {
+        letter-spacing: -1px;
+        line-height: 1.15;
+    }
+
+    .hero__actions {
+        flex-direction: column;
+        width: 100%;
+        max-width: 320px;
+        margin-bottom: 32px;
+    }
+
+    .hero__actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .hero__stats {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 20px 16px;
+        justify-content: center;
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .hero__stat-divider {
+        display: none;
+    }
+
+    .hero__stat {
+        min-width: 80px;
+    }
+
+    .hero__floating {
+        display: none;
+    }
+
+    .hero__trust {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .hero__orb--1 {
+        width: 250px;
+        height: 250px;
+    }
+
+    .hero__orb--2 {
+        width: 200px;
+        height: 200px;
+    }
+
+    .hero__orb--3 {
+        width: 150px;
+        height: 150px;
+    }
+}
+
+/* ===== SMALL MOBILE ===== */
+@media (max-width: 400px) {
+    .hero__content {
+        padding: 30px 12px;
+    }
+
+    .hero__badge {
+        margin-bottom: 16px;
+    }
+
+    .hero__subtitle {
+        margin-bottom: 28px;
+    }
+
+    .hero__stats {
+        padding: 16px 12px;
+    }
+}
