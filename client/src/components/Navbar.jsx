@@ -45,6 +45,9 @@ export default function Navbar() {
                     <Link to="/orders" className={`navbar__link ${location.pathname === '/orders' ? 'active' : ''}`}>
                         My Orders
                     </Link>
+                    <Link to="/admin" className={`navbar__link ${location.pathname.startsWith('/admin') ? 'active' : ''}`}>
+                        Admin
+                    </Link>
                     <Link to="/catalog" className="btn btn-primary btn-sm navbar__cta">
                         Buy Gift Cards
                     </Link>
