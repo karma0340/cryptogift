@@ -66,14 +66,23 @@ app.use(errorHandler);
 
 // ========== DATABASE & SERVER ==========
 
-async function startServer() {
+// ========== DATABASE & SERVER ==========
+
+// Connect to MongoDB
+const connectDB = async () => {
     try {
-        // Connect to MongoDB
+        if (mongoose.connection.readyState >= 1) return;
         console.log('🔌 Connecting to MongoDB...');
         await mongoose.connect(config.mongodbUri);
         console.log('✅ MongoDB connected successfully');
+    } catch (error) {
+        console.error('❌ Failed to connect to MongoDB:', error.message);
+    }
+};
 
-        // Start server
+// Start server locally (not used by Vercel)
+if (process.env.NODE_ENV !== 'production') {
+    connectDB().then(() => {
         app.listen(config.port, () => {
             console.log(`\n🚀 CryptoGift API Server`);
             console.log(`   Environment: ${config.nodeEnv}`);
@@ -81,28 +90,11 @@ async function startServer() {
             console.log(`   API URL:     http://localhost:${config.port}/api`);
             console.log(`   Health:      http://localhost:${config.port}/api/health`);
             console.log(`   Frontend:    ${config.frontendUrl}\n`);
-            console.log('📋 Available endpoints:');
-            console.log('   POST   /api/orders           - Create order');
-            console.log('   GET    /api/orders            - List orders');
-            console.log('   GET    /api/orders/:id        - Get order');
-            console.log('   POST   /api/payments/webhook  - Payment webhook');
-            console.log('   POST   /api/payments/simulate - Simulate payment');
-            console.log('   GET    /api/payments/estimate  - Price estimate');
-            console.log('   GET    /api/giftcards         - List gift cards');
-            console.log('   GET    /api/giftcards/:id     - Get gift card\n');
         });
-    } catch (error) {
-        console.error('❌ Failed to start server:', error.message);
-
-        // Try starting without MongoDB (for demo purposes)
-        console.log('\n⚠️  Starting in demo mode (without MongoDB)...');
-        app.listen(config.port, () => {
-            console.log(`\n🚀 CryptoGift API Server (Demo Mode)`);
-            console.log(`   Port: ${config.port}`);
-            console.log(`   API URL: http://localhost:${config.port}/api`);
-            console.log(`   ⚠️  Database not connected - some features will be limited\n`);
-        });
-    }
+    });
+} else {
+    // For Vercel Serverless
+    connectDB();
 }
 
 // Handle graceful shutdown
@@ -118,4 +110,5 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-startServer();
+// Export the Express app for Vercel
+module.exports = app;
