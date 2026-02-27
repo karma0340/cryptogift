@@ -34,6 +34,28 @@ if (config.nodeEnv === 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Database Connection (Middleware for Serverless)
+const connectDB = async () => {
+    try {
+        if (mongoose.connection.readyState >= 1) return;
+        console.log('🔌 Connecting to MongoDB...');
+        await mongoose.connect(config.mongodbUri);
+        console.log('✅ MongoDB connected successfully');
+    } catch (error) {
+        console.error('❌ Failed to connect to MongoDB:', error.message);
+        throw error;
+    }
+};
+
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ========== ROUTES ==========
 
 // Health check
@@ -64,21 +86,7 @@ app.use((req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// ========== DATABASE & SERVER ==========
-
-// ========== DATABASE & SERVER ==========
-
-// Connect to MongoDB
-const connectDB = async () => {
-    try {
-        if (mongoose.connection.readyState >= 1) return;
-        console.log('🔌 Connecting to MongoDB...');
-        await mongoose.connect(config.mongodbUri);
-        console.log('✅ MongoDB connected successfully');
-    } catch (error) {
-        console.error('❌ Failed to connect to MongoDB:', error.message);
-    }
-};
+// ========== SERVER STARTUP ==========
 
 // Start server locally (not used by Vercel)
 if (process.env.NODE_ENV !== 'production') {
@@ -92,9 +100,6 @@ if (process.env.NODE_ENV !== 'production') {
             console.log(`   Frontend:    ${config.frontendUrl}\n`);
         });
     });
-} else {
-    // For Vercel Serverless
-    connectDB();
 }
 
 // Handle graceful shutdown
