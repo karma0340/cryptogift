@@ -87,6 +87,61 @@ const api = {
             return false;
         }
     },
+
+    /**
+     * Admin: Login
+     */
+    async adminLogin(password) {
+        const res = await fetch(`${API_BASE}/admin/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Login failed');
+        return data.token;
+    },
+
+    /**
+     * Admin: Get Stats
+     */
+    async getAdminStats(token) {
+        const res = await fetch(`${API_BASE}/admin/stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to fetch stats');
+        return data.data;
+    },
+
+    /**
+     * Admin: Get Orders
+     */
+    async getAdminOrders(token, page = 1, limit = 20, status = 'all') {
+        const res = await fetch(`${API_BASE}/admin/orders?page=${page}&limit=${limit}&status=${status}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to fetch admin orders');
+        return data.data;
+    },
+
+    /**
+     * Admin: Fulfill Order
+     */
+    async fulfillAdminOrder(token, orderId, giftCardCode, giftCardPin = null) {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}/fulfill`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ giftCardCode, giftCardPin }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to fulfill order');
+        return data.data;
+    }
 };
 
 export default api;

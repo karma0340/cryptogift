@@ -10,6 +10,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 const orderRoutes = require('./routes/orders');
 const paymentRoutes = require('./routes/payments');
 const giftcardRoutes = require('./routes/giftcards');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/giftcards', giftcardRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Root handling for Vercel Preview
 app.get('/', (req, res) => {
