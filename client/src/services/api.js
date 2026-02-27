@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:5000/api';
+// Use the deployed backend URL
+const API_BASE = import.meta.env.VITE_API_URL || 'https://cryptogift-jj7h.vercel.app/api';
 
 const api = {
     /**
