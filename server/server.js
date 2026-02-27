@@ -75,6 +75,15 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/giftcards', giftcardRoutes);
 
+// Root handling for Vercel Preview
+app.get('/', (req, res) => {
+    res.json({ success: true, message: 'CryptoGift API is running. Access /api/health for status.' });
+});
+
+app.get('/api', (req, res) => {
+    res.json({ success: true, message: 'CryptoGift API is running. Access /api/health for status.' });
+});
+
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
