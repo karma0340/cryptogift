@@ -53,6 +53,35 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
+ * PATCH /api/orders/:orderId/email
+ * Update the customer email on an existing order
+ */
+router.patch('/:orderId/email', async (req, res, next) => {
+    try {
+        const { orderId } = req.params;
+        const { email } = req.body;
+
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, error: 'Valid email is required' });
+        }
+
+        const order = await Order.findOneAndUpdate(
+            { orderId },
+            { email: email.toLowerCase().trim() },
+            { new: true }
+        );
+
+        if (!order) {
+            return res.status(404).json({ success: false, error: 'Order not found' });
+        }
+
+        res.json({ success: true, data: { orderId: order.orderId, email: order.email } });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * POST /api/orders
  * Create a new order and initiate crypto payment
  */

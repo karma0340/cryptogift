@@ -16,15 +16,49 @@ export default function CheckoutPage() {
     const [walletAddress, setWalletAddress] = useState('');
     const [cryptoPayAmount, setCryptoPayAmount] = useState('');
     const [orderId, setOrderId] = useState('');
+    const [orderCreating, setOrderCreating] = useState(true); // loading state for initial order creation
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [countdown, setCountdown] = useState(5);
+    const [countdown, setCountdown] = useState(600);
     const pollRef = useRef(null);
+    const orderCreatedRef = useRef(false); // prevent double-creation in strict mode
 
     // If no state, redirect
     useEffect(() => {
         if (!state) navigate('/catalog');
     }, [state, navigate]);
+
+    // Create order immediately on page load to get real NOWPayments address
+    useEffect(() => {
+        if (!state || orderCreatedRef.current) return;
+        orderCreatedRef.current = true;
+
+        const createInitialOrder = async () => {
+            setOrderCreating(true);
+            try {
+                const orderData = await api.createOrder({
+                    brandId: brand.id,
+                    brandName: brand.name,
+                    amount: amount,
+                    currency: brand.currency,
+                    discountPercent: brand.discount || 0,
+                    cryptoCurrency: crypto.symbol,
+                    email: 'pending@cryptogift.app', // placeholder until user fills email
+                });
+
+                setOrderId(orderData.orderId);
+                setWalletAddress(orderData.payment.address);   // REAL NOWPayments address ✅
+                setCryptoPayAmount(orderData.payment.amount);   // REAL crypto amount ✅
+            } catch (err) {
+                console.error('Failed to pre-create order:', err);
+                setError('Failed to load payment details. Please go back and try again.');
+            } finally {
+                setOrderCreating(false);
+            }
+        };
+
+        createInitialOrder();
+    }, [state]);
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -34,38 +68,24 @@ export default function CheckoutPage() {
     }, []);
 
     const handleConfirmPayment = async () => {
-        if (!email) return;
+        if (!email || !orderId) return;
         setLoading(true);
         setError('');
 
         try {
-            // 1. Create order on backend
-            const orderData = await api.createOrder({
-                brandId: brand.id,
-                brandName: brand.name,
-                amount: amount,
-                currency: brand.currency,
-                discountPercent: brand.discount || 0,
-                cryptoCurrency: crypto.symbol,
-                email,
-            });
+            // Update the order with the customer's real email
+            await api.updateOrderEmail(orderId, email);
 
-            setOrderId(orderData.orderId);
-            setWalletAddress(orderData.payment.address);
-            setCryptoPayAmount(orderData.payment.amount);
-
-            // 2. Switch to processing state (wait for real payment)
+            // Switch to processing state (wait for real payment)
             setStep('processing');
-            setCountdown(600); // Set a longer timeout (e.g., 10 mins) for real payment
+            setCountdown(600); // 10 minute window for payment
 
-            // 3. Poll for order completion
-            let pollCount = 0;
+            // Poll for order completion
             pollRef.current = setInterval(async () => {
-                pollCount++;
                 setCountdown(prev => Math.max(0, prev - 1));
 
                 try {
-                    const updatedOrder = await api.getOrder(orderData.orderId);
+                    const updatedOrder = await api.getOrder(orderId);
 
                     if (updatedOrder.status === 'completed') {
                         clearInterval(pollRef.current);
@@ -79,15 +99,16 @@ export default function CheckoutPage() {
                 } catch (err) {
                     console.error('Polling error:', err);
                 }
-            }, 5000); // Poll every 5 seconds for production
+            }, 5000); // Poll every 5 seconds
 
         } catch (err) {
-            console.error('Order creation failed:', err);
-            setError('Failed to initiate order. Please try again.');
+            console.error('Order confirmation failed:', err);
+            setError('Failed to confirm order. Please try again.');
         } finally {
             setLoading(false);
         }
     };
+
 
     function generateFallbackCode() {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -216,15 +237,17 @@ export default function CheckoutPage() {
                             <button
                                 className="btn btn-primary btn-lg checkout__confirm-btn"
                                 onClick={handleConfirmPayment}
-                                disabled={!email || loading}
+                                disabled={!email || loading || orderCreating || !orderId}
                                 id="confirm-payment-btn"
                             >
-                                {loading ? 'Creating Order...' : "I've Sent the Payment"}
+                                {orderCreating ? 'Preparing Payment...' : loading ? 'Confirming...' : "I've Sent the Payment"}
                             </button>
 
-                            <p className="checkout__disclaimer">
-                                Demo mode — payment is simulated for testing purposes.
-                            </p>
+                            {orderId && (
+                                <p className="checkout__disclaimer" style={{ color: 'var(--color-success, #4ade80)', opacity: 0.8 }}>
+                                    ✅ Order {orderId} ready — send payment to the address above
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}

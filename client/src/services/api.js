@@ -127,6 +127,20 @@ const api = {
     },
 
     /**
+     * Update order email
+     */
+    async updateOrderEmail(orderId, email) {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/email`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to update email');
+        return data.data;
+    },
+
+    /**
      * Admin: Fulfill Order
      */
     async fulfillAdminOrder(token, orderId, giftCardCode, giftCardPin = null) {
