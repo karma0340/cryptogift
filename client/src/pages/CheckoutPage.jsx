@@ -54,14 +54,11 @@ export default function CheckoutPage() {
             setWalletAddress(orderData.payment.address);
             setCryptoPayAmount(orderData.payment.amount);
 
-            // 2. Simulate payment (demo mode)
-            await api.simulatePayment(orderData.orderId);
-
-            // 3. Switch to processing state
+            // 2. Switch to processing state (wait for real payment)
             setStep('processing');
-            setCountdown(5);
+            setCountdown(600); // Set a longer timeout (e.g., 10 mins) for real payment
 
-            // 4. Poll for order completion
+            // 3. Poll for order completion
             let pollCount = 0;
             pollRef.current = setInterval(async () => {
                 pollCount++;
@@ -72,41 +69,21 @@ export default function CheckoutPage() {
 
                     if (updatedOrder.status === 'completed') {
                         clearInterval(pollRef.current);
-                        setGiftCode(updatedOrder.giftCardCode || generateFallbackCode());
+                        setGiftCode(updatedOrder.giftCardCode);
                         setStep('success');
                     } else if (updatedOrder.status === 'failed') {
                         clearInterval(pollRef.current);
-                        setError('Payment failed. Please try again.');
+                        setError('Payment or fulfillment failed. Please contact support.');
                         setStep('payment');
                     }
                 } catch (err) {
-                    // If polling fails, use fallback after timeout
-                    if (pollCount >= 8) {
-                        clearInterval(pollRef.current);
-                        setGiftCode(generateFallbackCode());
-                        setStep('success');
-                    }
+                    console.error('Polling error:', err);
                 }
-            }, 1000);
+            }, 5000); // Poll every 5 seconds for production
 
         } catch (err) {
             console.error('Order creation failed:', err);
-            // Fallback to demo mode if backend is unavailable
-            setStep('processing');
-            setCountdown(5);
-
-            const timer = setInterval(() => {
-                setCountdown(prev => {
-                    if (prev <= 1) {
-                        clearInterval(timer);
-                        setGiftCode(generateFallbackCode());
-                        setOrderId('ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase());
-                        setStep('success');
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
+            setError('Failed to initiate order. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -133,12 +110,7 @@ export default function CheckoutPage() {
     const { brand, amount, discountedAmount, crypto, cryptoAmount } = state;
 
     // Use backend wallet address if available, otherwise from state
-    const displayAddress = walletAddress || (() => {
-        const chars = '0123456789abcdef';
-        let addr = '0x';
-        for (let i = 0; i < 40; i++) addr += chars.charAt(Math.floor(Math.random() * chars.length));
-        return addr;
-    })();
+    const displayAddress = walletAddress || '0xa0507a6017425937d5e0fde532f21e009b4d6d4b';
     const displayCryptoAmount = cryptoPayAmount || cryptoAmount;
 
     return (
@@ -212,20 +184,14 @@ export default function CheckoutPage() {
                                     </button>
                                 </div>
 
-                                {/* Simulated QR */}
+                                {/* Real QR Code */}
                                 <div className="checkout__qr">
                                     <div className="checkout__qr-placeholder">
-                                        <div className="checkout__qr-grid">
-                                            {Array.from({ length: 64 }).map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className="checkout__qr-cell"
-                                                    style={{
-                                                        background: Math.random() > 0.4 ? '#fff' : 'transparent',
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
+                                        <img
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${displayAddress}`}
+                                            alt="Payment QR Code"
+                                            style={{ width: '100%', height: '100%' }}
+                                        />
                                     </div>
                                     <p className="checkout__qr-label">Scan to pay</p>
                                 </div>
@@ -296,23 +262,61 @@ export default function CheckoutPage() {
                             <div className="checkout__success-check">✓</div>
                             <h2 className="checkout__success-title">Payment Confirmed!</h2>
                             <p className="checkout__success-subtitle">
-                                Your {brand.name} gift card is ready
+                                Your {brand.name} is ready
                             </p>
 
-                            <div className="checkout__gift-code-box">
-                                <label className="checkout__gift-code-label">Your Gift Card Code</label>
-                                <div className="checkout__gift-code">
-                                    <code className="checkout__gift-code-text">{giftCode}</code>
+                            {brand.category === 'Virtual Cards' ? (
+                                <div className="virtual-card-container">
+                                    <div className="v-card" style={{ background: brand.bgGradient }}>
+                                        <div className="v-card__chip"></div>
+                                        <div className="v-card__brand-name">{brand.name}</div>
+                                        <div className="v-card__number">
+                                            {giftCode.split('|')[0] || '**** **** **** ****'}
+                                        </div>
+                                        <div className="v-card__footer">
+                                            <div className="v-card__info">
+                                                <span className="v-card__label">VALID THRU</span>
+                                                <span className="v-card__value">{giftCode.split('|')[2] || 'MM/YY'}</span>
+                                            </div>
+                                            <div className="v-card__info">
+                                                <span className="v-card__label">CVV</span>
+                                                <span className="v-card__value">{giftCode.split('|')[1] || '***'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="v-card__networks">
+                                            {brand.name.toLowerCase().includes('visa') ? 'VISA' : 'Mastercard'}
+                                        </div>
+                                    </div>
                                     <button
-                                        className="checkout__gift-code-copy"
-                                        onClick={handleCopyCode}
-                                        id="copy-code-btn"
+                                        className="btn btn-secondary sm checkout__gift-code-copy"
+                                        onClick={() => {
+                                            const [num, cvv, exp] = giftCode.split('|');
+                                            const text = `Card: ${num}\nCVV: ${cvv}\nExpiry: ${exp}`;
+                                            navigator.clipboard.writeText(text);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 2000);
+                                        }}
                                     >
                                         {copied ? <HiOutlineCheck /> : <HiOutlineClipboardCopy />}
-                                        {copied ? 'Copied!' : 'Copy'}
+                                        {copied ? 'Copied All Details' : 'Copy Card Info'}
                                     </button>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="checkout__gift-code-box">
+                                    <label className="checkout__gift-code-label">Your Gift Card Code</label>
+                                    <div className="checkout__gift-code">
+                                        <code className="checkout__gift-code-text">{giftCode}</code>
+                                        <button
+                                            className="checkout__gift-code-copy"
+                                            onClick={handleCopyCode}
+                                            id="copy-code-btn"
+                                        >
+                                            {copied ? <HiOutlineCheck /> : <HiOutlineClipboardCopy />}
+                                            {copied ? 'Copied!' : 'Copy'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="checkout__success-details">
                                 <div className="checkout__success-detail">
@@ -320,7 +324,7 @@ export default function CheckoutPage() {
                                     <span>{orderId}</span>
                                 </div>
                                 <div className="checkout__success-detail">
-                                    <span>Brand</span>
+                                    <span>Product</span>
                                     <span>{brand.name}</span>
                                 </div>
                                 <div className="checkout__success-detail">

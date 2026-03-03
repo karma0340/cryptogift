@@ -40,11 +40,14 @@ const connectDB = async () => {
     try {
         if (mongoose.connection.readyState >= 1) return;
         console.log('🔌 Connecting to MongoDB...');
-        await mongoose.connect(config.mongodbUri);
+        // Add timeout to connection attempt
+        await mongoose.connect(config.mongodbUri, {
+            serverSelectionTimeoutMS: 5000,
+        });
         console.log('✅ MongoDB connected successfully');
     } catch (error) {
-        console.error('❌ Failed to connect to MongoDB:', error.message);
-        throw error;
+        console.error('❌ MongoDB Connection Error:', error.message);
+        console.log('⚠️ Running in "No-DB" mode. Database features will fail, but the server is UP.');
     }
 };
 
@@ -99,17 +102,16 @@ app.use(errorHandler);
 
 // ========== SERVER STARTUP ==========
 
-// Start server locally (not used by Vercel)
+// Start server locally
 if (process.env.NODE_ENV !== 'production') {
-    connectDB().then(() => {
-        app.listen(config.port, () => {
-            console.log(`\n🚀 CryptoGift API Server`);
-            console.log(`   Environment: ${config.nodeEnv}`);
-            console.log(`   Port:        ${config.port}`);
-            console.log(`   API URL:     http://localhost:${config.port}/api`);
-            console.log(`   Health:      http://localhost:${config.port}/api/health`);
-            console.log(`   Frontend:    ${config.frontendUrl}\n`);
-        });
+    connectDB();
+    app.listen(config.port, () => {
+        console.log(`\n🚀 CryptoGift API Server`);
+        console.log(`   Environment: ${config.nodeEnv}`);
+        console.log(`   Port:        ${config.port}`);
+        console.log(`   API URL:     http://localhost:${config.port}/api`);
+        console.log(`   Health:      http://localhost:${config.port}/api/health`);
+        console.log(`   Frontend:    ${config.frontendUrl}\n`);
     });
 }
 

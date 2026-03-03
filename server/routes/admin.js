@@ -109,6 +109,15 @@ router.put('/orders/:id/fulfill', adminAuth, async (req, res) => {
 
         await order.save();
 
+        // Send email notification
+        const emailService = require('../services/emailService');
+        try {
+            await emailService.sendGiftCardEmail(order);
+        } catch (emailErr) {
+            console.error('Failed to send fulfillment email:', emailErr.message);
+            // Don't fail the request if email fails
+        }
+
         res.json({
             success: true,
             message: 'Order fulfilled successfully',

@@ -69,7 +69,7 @@ class NowPaymentsService {
                 pay_currency: payCurrency,
                 order_id: orderId,
                 order_description: orderDescription,
-                ipn_callback_url: `${config.frontendUrl}/api/payments/webhook`,
+                ipn_callback_url: `${config.backendUrl}/api/payments/webhook`,
             });
 
             return {

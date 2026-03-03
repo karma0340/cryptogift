@@ -6,6 +6,7 @@ module.exports = {
     nodeEnv: process.env.NODE_ENV || 'development',
     mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/cryptogift',
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+    backendUrl: process.env.BACKEND_URL || 'http://localhost:5000',
 
     // NOWPayments
     nowPayments: {

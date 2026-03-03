@@ -253,9 +253,34 @@ const brands = [
     discount: 2,
     popular: false,
   },
+  // Virtual Cards
+  {
+    id: 'visa-vcc',
+    name: 'Visa Virtual Card',
+    category: 'Virtual Cards',
+    color: '#1a1f71',
+    bgGradient: 'linear-gradient(135deg, #1a1f71 0%, #0055a5 100%)',
+    description: 'A virtual prepaid Visa card you can use for online payments anywhere Visa is accepted.',
+    denominations: [25, 50, 100, 200, 500],
+    currency: 'USD',
+    discount: 0,
+    popular: true,
+  },
+  {
+    id: 'mastercard-vcc',
+    name: 'Mastercard Virtual Card',
+    category: 'Virtual Cards',
+    color: '#eb001b',
+    bgGradient: 'linear-gradient(135deg, #f79e1b 0%, #eb001b 100%)',
+    description: 'A virtual prepaid Mastercard for secure global online shopping.',
+    denominations: [25, 50, 100, 200, 500],
+    currency: 'USD',
+    discount: 0,
+    popular: true,
+  },
 ];
 
-export const categories = ['All', 'Shopping', 'Gaming', 'Entertainment', 'Food & Delivery'];
+export const categories = ['All', 'Virtual Cards', 'Shopping', 'Gaming', 'Entertainment', 'Food & Delivery'];
 
 export const cryptoCurrencies = [
   { id: 'btc', name: 'Bitcoin', symbol: 'BTC', icon: '₿', color: '#F7931A', rate: 0.000012 },

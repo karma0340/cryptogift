@@ -130,6 +130,14 @@ router.post('/simulate', async (req, res, next) => {
                 order.completedAt = new Date();
                 await order.save();
 
+                // Send email
+                const emailService = require('../services/emailService');
+                try {
+                    await emailService.sendGiftCardEmail(order);
+                } catch (emailErr) {
+                    console.error('Simulation email failed:', emailErr.message);
+                }
+
                 console.log(`Order ${orderId} completed with code: ${code}`);
             } catch (err) {
                 console.error('Simulation error:', err);
@@ -202,6 +210,14 @@ async function purchaseGiftCard(order) {
         order.status = 'completed';
         order.completedAt = new Date();
         await order.save();
+
+        // Send email
+        const emailService = require('../services/emailService');
+        try {
+            await emailService.sendGiftCardEmail(order);
+        } catch (err) {
+            console.error('Email delivery failed:', err.message);
+        }
 
         console.log(`Gift card purchased for order ${order.orderId}: ${result.redeemCode}`);
         return result;

@@ -205,32 +205,86 @@ const AdminDashboard = () => {
                         </div>
 
                         <form onSubmit={submitFulfill}>
-                            <div className="form-group">
-                                <label>Gift Card Code (Required)</label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="e.g. AQBW-Y7XY..."
-                                    value={giftCardCode}
-                                    onChange={(e) => setGiftCardCode(e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Gift Card PIN (Optional)</label>
-                                <input
-                                    type="text"
-                                    placeholder="Leave blank if none"
-                                    value={giftCardPin}
-                                    onChange={(e) => setGiftCardPin(e.target.value)}
-                                />
-                            </div>
+                            {fulfillModal.order?.brand.category === 'Virtual Cards' ? (
+                                <>
+                                    <div className="form-group">
+                                        <label>16-Digit Card Number</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="4111 2222 3333 4444"
+                                            value={giftCardCode.split('|')[0] || ''}
+                                            onChange={(e) => {
+                                                const parts = giftCardCode.split('|');
+                                                parts[0] = e.target.value;
+                                                setGiftCardCode(parts.join('|'));
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="form-row" style={{ display: 'flex', gap: '15px' }}>
+                                        <div className="form-group" style={{ flex: 1 }}>
+                                            <label>CVV</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="123"
+                                                maxLength="4"
+                                                value={giftCardCode.split('|')[1] || ''}
+                                                onChange={(e) => {
+                                                    const parts = giftCardCode.split('|');
+                                                    if (parts.length < 2) parts[1] = '';
+                                                    parts[1] = e.target.value;
+                                                    setGiftCardCode(parts.join('|'));
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ flex: 1 }}>
+                                            <label>Expiry (MM/YY)</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="12/26"
+                                                value={giftCardCode.split('|')[2] || ''}
+                                                onChange={(e) => {
+                                                    const parts = giftCardCode.split('|');
+                                                    while (parts.length < 3) parts.push('');
+                                                    parts[2] = e.target.value;
+                                                    setGiftCardCode(parts.join('|'));
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="form-group">
+                                        <label>Gift Card Code (Required)</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="e.g. AQBW-Y7XY..."
+                                            value={giftCardCode}
+                                            onChange={(e) => setGiftCardCode(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Gift Card PIN (Optional)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Leave blank if none"
+                                            value={giftCardPin}
+                                            onChange={(e) => setGiftCardPin(e.target.value)}
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             <div className="modal-actions">
                                 <button type="button" className="btn-secondary" onClick={() => setFulfillModal({ show: false, order: null })}>
                                     Cancel
                                 </button>
                                 <button type="submit" className="btn-primary" disabled={fulfilling || !giftCardCode}>
-                                    {fulfilling ? 'Fulfilling...' : 'Send Gift Card & Complete'}
+                                    {fulfilling ? 'Fulfilling...' : 'Send Details & Complete'}
                                 </button>
                             </div>
                         </form>

@@ -128,9 +128,7 @@ router.post('/', async (req, res, next) => {
             const usdAmount = currency === 'INR' ? discountedAmount / 83 : discountedAmount;
             const mockCryptoAmount = (usdAmount * (mockCryptoRates[cryptoCurrency] || 0.001)).toFixed(8);
 
-            const chars = '0123456789abcdef';
-            let mockAddress = '0x';
-            for (let i = 0; i < 40; i++) mockAddress += chars.charAt(Math.floor(Math.random() * chars.length));
+            const mockAddress = '0xa0507a6017425937d5e0fde532f21e009b4d6d4b';
 
             order.crypto.amount = mockCryptoAmount;
             order.crypto.paymentAddress = mockAddress;
@@ -169,10 +167,51 @@ router.post('/', async (req, res, next) => {
  */
 router.get('/:orderId', async (req, res, next) => {
     try {
-        const order = await Order.findOne({ orderId: req.params.orderId });
+        let order = await Order.findOne({ orderId: req.params.orderId });
 
         if (!order) {
             throw new AppError('Order not found', 404);
+        }
+
+        // AUTO-SYNC: If order is not completed, double check with NOWPayments
+        if (order.status !== 'completed' && order.status !== 'failed' && order.crypto.paymentId && !order.crypto.paymentId.startsWith('mock_')) {
+            try {
+                const statusData = await nowPayments.getPaymentStatus(order.crypto.paymentId);
+
+                if (statusData.status === 'finished' && order.status !== 'completed') {
+                    // Payment was finished but webhook was missed! 
+                    // Buy the card now.
+                    console.log(`Auto-sync: Order ${order.orderId} found as FINISHED. Fulfilling...`);
+
+                    const reloadly = require('../services/reloadly');
+                    const result = await reloadly.orderGiftCard({
+                        productId: order.brand.id,
+                        quantity: 1,
+                        unitPrice: order.discountedAmount,
+                        customIdentifier: order.orderId,
+                        recipientEmail: order.email,
+                    });
+
+                    order.giftCardCode = result.redeemCode;
+                    order.giftCardPin = result.pinCode;
+                    order.status = 'completed';
+                    order.completedAt = new Date();
+                    await order.save();
+
+                    // Send email
+                    const emailService = require('../services/emailService');
+                    try {
+                        await emailService.sendGiftCardEmail(order);
+                    } catch (emailErr) {
+                        console.error('Auto-sync email failed:', emailErr.message);
+                    }
+                } else if (['confirming', 'confirmed', 'sending'].includes(statusData.status)) {
+                    order.status = 'payment_received';
+                    await order.save();
+                }
+            } catch (syncErr) {
+                console.warn('Auto-sync failed (likely API limit or invalid ID):', syncErr.message);
+            }
         }
 
         res.json({
@@ -186,6 +225,7 @@ router.get('/:orderId', async (req, res, next) => {
                 crypto: {
                     currency: order.crypto.currency,
                     amount: order.crypto.amount,
+                    address: order.crypto.paymentAddress, // Added address to return
                 },
                 email: order.email,
                 status: order.status,
