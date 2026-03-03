@@ -13,6 +13,9 @@ const AdminDashboard = () => {
 
     // Fulfill Modal State
     const [fulfillModal, setFulfillModal] = useState({ show: false, order: null });
+    const [cardNum, setCardNum] = useState('');
+    const [cardCvv, setCardCvv] = useState('');
+    const [cardExp, setCardExp] = useState('');
     const [giftCardCode, setGiftCardCode] = useState('');
     const [giftCardPin, setGiftCardPin] = useState('');
     const [fulfilling, setFulfilling] = useState(false);
@@ -56,6 +59,9 @@ const AdminDashboard = () => {
 
     const openFulfillModal = (order) => {
         setFulfillModal({ show: true, order });
+        setCardNum('');
+        setCardCvv('');
+        setCardExp('');
         setGiftCardCode('');
         setGiftCardPin('');
     };
@@ -64,7 +70,12 @@ const AdminDashboard = () => {
         e.preventDefault();
         setFulfilling(true);
         try {
-            await api.fulfillAdminOrder(token, fulfillModal.order.orderId, giftCardCode, giftCardPin);
+            // For virtual cards, join inputs with |
+            const finalCode = fulfillModal.order?.brand.category === 'Virtual Cards'
+                ? `${cardNum}|${cardCvv}|${cardExp}`
+                : giftCardCode;
+
+            await api.fulfillAdminOrder(token, fulfillModal.order.orderId, finalCode, giftCardPin);
             setFulfillModal({ show: false, order: null });
             fetchData(); // Refresh list
         } catch (err) {
@@ -171,13 +182,12 @@ const AdminDashboard = () => {
                                                     <button
                                                         className="btn-primary sm"
                                                         onClick={() => openFulfillModal(order)}
+                                                        style={{ cursor: 'pointer' }}
                                                     >
                                                         Fulfill Now
                                                     </button>
                                                 ) : (
-                                                    <button className="btn-secondary sm disabled" disabled>
-                                                        Done
-                                                    </button>
+                                                    <button className="btn-secondary sm disabled" disabled>Done</button>
                                                 )}
                                             </td>
                                         </tr>
@@ -191,17 +201,17 @@ const AdminDashboard = () => {
 
             {/* Fulfill Modal */}
             {fulfillModal.show && (
-                <div className="modal-overlay">
-                    <div className="modal-content admin-modal">
+                <div className="modal-overlay" style={{ display: 'flex', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999, justifyContent: 'center', alignItems: 'center' }}>
+                    <div className="modal-content admin-modal" style={{ background: '#121212', padding: '30px', borderRadius: '15px', maxWidth: '500px', width: '90%', border: '1px solid #333' }}>
                         <h2>Fulfill Order {fulfillModal.order?.orderId}</h2>
                         <p className="modal-subtitle">
                             Purchased: {fulfillModal.order?.brand.name} for ${fulfillModal.order?.amount}
                         </p>
 
-                        <div className="fulfillment-instructions">
-                            1. Check your email/wallet to confirm receipt of exactly <strong>{fulfillModal.order?.crypto.amount} {fulfillModal.order?.crypto.currency.toUpperCase()}</strong>.<br />
-                            2. Manually purchase the gift card online.<br />
-                            3. Enter the final <strong>Code</strong> below to email it to `{fulfillModal.order?.email}`.
+                        <div className="fulfillment-instructions" style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', fontSize: '0.9rem', marginBottom: '20px' }}>
+                            1. Confirm receipt of <strong>{fulfillModal.order?.crypto.amount} {fulfillModal.order?.crypto.currency.toUpperCase()}</strong>.<br />
+                            2. Purchase the gift card manually.<br />
+                            3. Enter the code below to email the customer.
                         </div>
 
                         <form onSubmit={submitFulfill}>
@@ -213,15 +223,11 @@ const AdminDashboard = () => {
                                             type="text"
                                             required
                                             placeholder="4111 2222 3333 4444"
-                                            value={giftCardCode.split('|')[0] || ''}
-                                            onChange={(e) => {
-                                                const parts = giftCardCode.split('|');
-                                                parts[0] = e.target.value;
-                                                setGiftCardCode(parts.join('|'));
-                                            }}
+                                            value={cardNum}
+                                            onChange={(e) => setCardNum(e.target.value)}
                                         />
                                     </div>
-                                    <div className="form-row" style={{ display: 'flex', gap: '15px' }}>
+                                    <div style={{ display: 'flex', gap: '15px' }}>
                                         <div className="form-group" style={{ flex: 1 }}>
                                             <label>CVV</label>
                                             <input
@@ -229,13 +235,8 @@ const AdminDashboard = () => {
                                                 required
                                                 placeholder="123"
                                                 maxLength="4"
-                                                value={giftCardCode.split('|')[1] || ''}
-                                                onChange={(e) => {
-                                                    const parts = giftCardCode.split('|');
-                                                    if (parts.length < 2) parts[1] = '';
-                                                    parts[1] = e.target.value;
-                                                    setGiftCardCode(parts.join('|'));
-                                                }}
+                                                value={cardCvv}
+                                                onChange={(e) => setCardCvv(e.target.value)}
                                             />
                                         </div>
                                         <div className="form-group" style={{ flex: 1 }}>
@@ -244,13 +245,8 @@ const AdminDashboard = () => {
                                                 type="text"
                                                 required
                                                 placeholder="12/26"
-                                                value={giftCardCode.split('|')[2] || ''}
-                                                onChange={(e) => {
-                                                    const parts = giftCardCode.split('|');
-                                                    while (parts.length < 3) parts.push('');
-                                                    parts[2] = e.target.value;
-                                                    setGiftCardCode(parts.join('|'));
-                                                }}
+                                                value={cardExp}
+                                                onChange={(e) => setCardExp(e.target.value)}
                                             />
                                         </div>
                                     </div>
@@ -279,12 +275,12 @@ const AdminDashboard = () => {
                                 </>
                             )}
 
-                            <div className="modal-actions">
-                                <button type="button" className="btn-secondary" onClick={() => setFulfillModal({ show: false, order: null })}>
+                            <div className="modal-actions" style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
+                                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setFulfillModal({ show: false, order: null })}>
                                     Cancel
                                 </button>
-                                <button type="submit" className="btn-primary" disabled={fulfilling || !giftCardCode}>
-                                    {fulfilling ? 'Fulfilling...' : 'Send Details & Complete'}
+                                <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={fulfilling}>
+                                    {fulfilling ? 'Sending...' : 'Fulfill now'}
                                 </button>
                             </div>
                         </form>
