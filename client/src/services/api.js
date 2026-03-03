@@ -5,11 +5,11 @@ const api = {
     /**
      * Create a new order
      */
-    async createOrder({ brandId, brandName, amount, currency, discountPercent, cryptoCurrency, email }) {
+    async createOrder({ brandId, brandName, amount, totalAmount, processingFee, currency, cryptoCurrency, email }) {
         const res = await fetch(`${API_BASE}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ brandId, brandName, amount, currency, discountPercent, cryptoCurrency, email }),
+            body: JSON.stringify({ brandId, brandName, amount, totalAmount, processingFee, currency, cryptoCurrency, email }),
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Failed to create order');

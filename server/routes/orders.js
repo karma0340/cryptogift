@@ -91,8 +91,9 @@ router.post('/', async (req, res, next) => {
             brandId,
             brandName,
             amount,
+            totalAmount,
+            processingFee,
             currency,
-            discountPercent,
             cryptoCurrency,
             email,
         } = req.body;
@@ -106,8 +107,9 @@ router.post('/', async (req, res, next) => {
             throw new AppError('Amount must be greater than 0', 400);
         }
 
-        // Calculate discounted amount
-        const discountedAmount = amount * (1 - (discountPercent || 0) / 100);
+        // Use totalAmount (gift card value + processing fee), falling back to amount
+        const chargeAmount = totalAmount || amount;
+        const fee = processingFee || 0;
 
         // Map crypto currency names to NOWPayments format
         const cryptoMap = {
@@ -123,8 +125,9 @@ router.post('/', async (req, res, next) => {
             brand: { id: brandId, name: brandName },
             amount,
             currency,
-            discountPercent: discountPercent || 0,
-            discountedAmount,
+            discountPercent: 0,
+            discountedAmount: chargeAmount, // total charge including fee
+            processingFee: fee,
             crypto: {
                 currency: cryptoCurrency,
                 amount: '0',
@@ -135,11 +138,11 @@ router.post('/', async (req, res, next) => {
 
         await order.save();
 
-        // Create payment with NOWPayments
+        // Create payment with NOWPayments for the FULL charge amount (incl. fee)
         let paymentData;
         try {
             paymentData = await nowPayments.createPayment({
-                priceAmount: discountedAmount,
+                priceAmount: chargeAmount,
                 priceCurrency: currency.toLowerCase(),
                 payCurrency: cryptoMap[cryptoCurrency] || cryptoCurrency.toLowerCase(),
                 orderId: order.orderId,
