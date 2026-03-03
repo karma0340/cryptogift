@@ -8,117 +8,87 @@ export default function CheckoutPage() {
     const { state } = useLocation();
     const navigate = useNavigate();
 
-    const [step, setStep] = useState('payment'); // payment | processing | success
+    // Steps: 'email' → 'address' → 'processing' → 'success'
+    const [step, setStep] = useState('email');
     const [email, setEmail] = useState('');
     const [copied, setCopied] = useState(false);
     const [giftCode, setGiftCode] = useState('');
-    const [giftPin, setGiftPin] = useState('');
     const [walletAddress, setWalletAddress] = useState('');
     const [cryptoPayAmount, setCryptoPayAmount] = useState('');
     const [orderId, setOrderId] = useState('');
-    const [orderCreating, setOrderCreating] = useState(true); // loading state for initial order creation
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [countdown, setCountdown] = useState(600);
     const pollRef = useRef(null);
-    const orderCreatedRef = useRef(false); // prevent double-creation in strict mode
 
-    // If no state, redirect
     useEffect(() => {
         if (!state) navigate('/catalog');
     }, [state, navigate]);
 
-    // Create order immediately on page load to get real NOWPayments address
-    useEffect(() => {
-        if (!state || orderCreatedRef.current) return;
-        orderCreatedRef.current = true;
-
-        const createInitialOrder = async () => {
-            setOrderCreating(true);
-            try {
-                const orderData = await api.createOrder({
-                    brandId: brand.id,
-                    brandName: brand.name,
-                    amount: amount,
-                    currency: brand.currency,
-                    discountPercent: brand.discount || 0,
-                    cryptoCurrency: crypto.symbol,
-                    email: 'pending@cryptogift.app', // placeholder until user fills email
-                });
-
-                setOrderId(orderData.orderId);
-                setWalletAddress(orderData.payment.address);   // REAL NOWPayments address ✅
-                setCryptoPayAmount(orderData.payment.amount);   // REAL crypto amount ✅
-            } catch (err) {
-                console.error('Failed to pre-create order:', err);
-                setError('Failed to load payment details. Please go back and try again.');
-            } finally {
-                setOrderCreating(false);
-            }
-        };
-
-        createInitialOrder();
-    }, [state]);
-
-    // Cleanup polling on unmount
     useEffect(() => {
         return () => {
             if (pollRef.current) clearInterval(pollRef.current);
         };
     }, []);
 
-    const handleConfirmPayment = async () => {
-        if (!email || !orderId) return;
+    if (!state) return null;
+
+    const { brand, amount, crypto } = state;
+
+    // STEP 1: User enters email → Click "Generate Payment Address"
+    // Backend creates order, NOWPayments returns REAL wallet address
+    const handleGenerateAddress = async () => {
+        if (!email) return;
         setLoading(true);
         setError('');
 
         try {
-            // Update the order with the customer's real email
-            await api.updateOrderEmail(orderId, email);
+            const orderData = await api.createOrder({
+                brandId: brand.id,
+                brandName: brand.name,
+                amount: amount,
+                currency: brand.currency || 'USD',
+                discountPercent: brand.discount || 0,
+                cryptoCurrency: crypto.symbol,
+                email,
+            });
 
-            // Switch to processing state (wait for real payment)
-            setStep('processing');
-            setCountdown(600); // 10 minute window for payment
-
-            // Poll for order completion
-            pollRef.current = setInterval(async () => {
-                setCountdown(prev => Math.max(0, prev - 1));
-
-                try {
-                    const updatedOrder = await api.getOrder(orderId);
-
-                    if (updatedOrder.status === 'completed') {
-                        clearInterval(pollRef.current);
-                        setGiftCode(updatedOrder.giftCardCode);
-                        setStep('success');
-                    } else if (updatedOrder.status === 'failed') {
-                        clearInterval(pollRef.current);
-                        setError('Payment or fulfillment failed. Please contact support.');
-                        setStep('payment');
-                    }
-                } catch (err) {
-                    console.error('Polling error:', err);
-                }
-            }, 5000); // Poll every 5 seconds
-
+            setOrderId(orderData.orderId);
+            setWalletAddress(orderData.payment.address);   // REAL address from NOWPayments ✅
+            setCryptoPayAmount(orderData.payment.amount);  // REAL crypto amount ✅
+            setStep('address'); // Move to show the real address
         } catch (err) {
-            console.error('Order confirmation failed:', err);
-            setError('Failed to confirm order. Please try again.');
+            console.error('Order creation failed:', err);
+            setError('Failed to generate payment address. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
+    // STEP 2: User sees REAL address, scans QR, sends payment
+    // Click "I've Sent the Payment" → start polling for confirmation
+    const handleConfirmPayment = () => {
+        setStep('processing');
+        setCountdown(600);
 
-    function generateFallbackCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 16; i++) {
-            if (i > 0 && i % 4 === 0) code += '-';
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    }
+        pollRef.current = setInterval(async () => {
+            setCountdown(prev => Math.max(0, prev - 1));
+            try {
+                const updatedOrder = await api.getOrder(orderId);
+                if (updatedOrder.status === 'completed') {
+                    clearInterval(pollRef.current);
+                    setGiftCode(updatedOrder.giftCardCode);
+                    setStep('success');
+                } else if (updatedOrder.status === 'failed') {
+                    clearInterval(pollRef.current);
+                    setError('Payment failed. Please contact support.');
+                    setStep('address');
+                }
+            } catch (err) {
+                console.error('Polling error:', err);
+            }
+        }, 5000);
+    };
 
     const handleCopyCode = () => {
         navigator.clipboard.writeText(giftCode);
@@ -126,48 +96,31 @@ export default function CheckoutPage() {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    if (!state) return null;
-
-    const { brand, amount, discountedAmount, crypto, cryptoAmount } = state;
-
-    // Use backend wallet address if available, otherwise from state
-    const displayAddress = walletAddress || '0xa0507a6017425937d5e0fde532f21e009b4d6d4b';
-    const displayCryptoAmount = cryptoPayAmount || cryptoAmount;
-
     return (
         <main className="checkout-page">
             <div className="container">
                 {step !== 'success' && (
-                    <button className="detail__back" onClick={() => navigate(-1)}>
+                    <button className="detail__back" onClick={() => step === 'address' ? setStep('email') : navigate(-1)}>
                         <HiArrowLeft /> Back
                     </button>
                 )}
 
-                {/* Error display */}
                 {error && (
                     <div className="checkout__error animate-fade-in">
                         <p>{error}</p>
                     </div>
                 )}
 
-                {/* Payment Step */}
-                {step === 'payment' && (
+                {/* ── STEP 1: Email Entry ── */}
+                {step === 'email' && (
                     <div className="checkout__layout animate-fade-in-up">
                         <div className="checkout__main glass-card">
                             <h2 className="checkout__title">Complete Payment</h2>
 
                             <div className="checkout__order-summary">
                                 <div className="checkout__brand-row">
-                                    <div
-                                        className="checkout__brand-logo"
-                                        style={{ background: brand.bgGradient }}
-                                    >
-                                        <span style={{
-                                            fontFamily: 'var(--font-heading)',
-                                            fontSize: '1.2rem',
-                                            fontWeight: 700,
-                                            color: brand.color === '#1b2838' || brand.color === '#000000' ? '#fff' : brand.color,
-                                        }}>
+                                    <div className="checkout__brand-logo" style={{ background: brand.bgGradient }}>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
                                             {brand.name.charAt(0)}
                                         </span>
                                     </div>
@@ -180,45 +133,6 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
 
-                            {/* Crypto payment address */}
-                            <div className="checkout__payment-box">
-                                <div className="checkout__payment-header">
-                                    <span className="checkout__crypto-icon" style={{ color: crypto.color }}>
-                                        {crypto.icon}
-                                    </span>
-                                    <span>Send exactly</span>
-                                </div>
-
-                                <div className="checkout__crypto-amount">
-                                    {displayCryptoAmount} {crypto.symbol}
-                                </div>
-
-                                <p className="checkout__payment-label">to this address:</p>
-
-                                <div className="checkout__wallet-address">
-                                    <code>{displayAddress}</code>
-                                    <button
-                                        className="checkout__copy-addr"
-                                        onClick={() => navigator.clipboard.writeText(displayAddress)}
-                                    >
-                                        <HiOutlineClipboardCopy />
-                                    </button>
-                                </div>
-
-                                {/* Real QR Code */}
-                                <div className="checkout__qr">
-                                    <div className="checkout__qr-placeholder">
-                                        <img
-                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${displayAddress}`}
-                                            alt="Payment QR Code"
-                                            style={{ width: '100%', height: '100%' }}
-                                        />
-                                    </div>
-                                    <p className="checkout__qr-label">Scan to pay</p>
-                                </div>
-                            </div>
-
-                            {/* Email input */}
                             <div className="checkout__email-section">
                                 <label className="detail__label">
                                     <HiOutlineMail style={{ marginRight: '6px' }} />
@@ -231,39 +145,111 @@ export default function CheckoutPage() {
                                     onChange={e => setEmail(e.target.value)}
                                     className="detail__input"
                                     id="checkout-email"
+                                    onKeyDown={e => e.key === 'Enter' && email && handleGenerateAddress()}
+                                    autoFocus
                                 />
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                                    Your gift card code will be sent here after payment is confirmed.
+                                </p>
                             </div>
 
                             <button
                                 className="btn btn-primary btn-lg checkout__confirm-btn"
-                                onClick={handleConfirmPayment}
-                                disabled={!email || loading || orderCreating || !orderId}
-                                id="confirm-payment-btn"
+                                onClick={handleGenerateAddress}
+                                disabled={!email || loading}
+                                id="generate-address-btn"
                             >
-                                {orderCreating ? 'Preparing Payment...' : loading ? 'Confirming...' : "I've Sent the Payment"}
+                                {loading ? 'Generating Payment Address...' : `Pay with ${crypto.symbol} →`}
                             </button>
-
-                            {orderId && (
-                                <p className="checkout__disclaimer" style={{ color: 'var(--color-success, #4ade80)', opacity: 0.8 }}>
-                                    ✅ Order {orderId} ready — send payment to the address above
-                                </p>
-                            )}
                         </div>
                     </div>
                 )}
 
-                {/* Processing Step */}
+                {/* ── STEP 2: Show REAL Address + QR ── */}
+                {step === 'address' && (
+                    <div className="checkout__layout animate-fade-in-up">
+                        <div className="checkout__main glass-card">
+                            <h2 className="checkout__title">Send Payment</h2>
+
+                            <div className="checkout__order-summary">
+                                <div className="checkout__brand-row">
+                                    <div className="checkout__brand-logo" style={{ background: brand.bgGradient }}>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
+                                            {brand.name.charAt(0)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <h3>{brand.name} Gift Card</h3>
+                                        <p className="checkout__brand-amount">
+                                            {brand.currency === 'INR' ? '₹' : '$'}{amount}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* REAL Payment Address from NOWPayments */}
+                            <div className="checkout__payment-box">
+                                <div className="checkout__payment-header">
+                                    <span className="checkout__crypto-icon" style={{ color: crypto.color }}>
+                                        {crypto.icon}
+                                    </span>
+                                    <span>Send exactly</span>
+                                </div>
+
+                                <div className="checkout__crypto-amount">
+                                    {cryptoPayAmount} {crypto.symbol}
+                                </div>
+
+                                <p className="checkout__payment-label">to this address:</p>
+
+                                <div className="checkout__wallet-address">
+                                    <code>{walletAddress}</code>
+                                    <button
+                                        className="checkout__copy-addr"
+                                        onClick={() => navigator.clipboard.writeText(walletAddress)}
+                                    >
+                                        <HiOutlineClipboardCopy />
+                                    </button>
+                                </div>
+
+                                {/* Real QR Code of the REAL address */}
+                                <div className="checkout__qr">
+                                    <div className="checkout__qr-placeholder">
+                                        <img
+                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${walletAddress}`}
+                                            alt="Payment QR Code"
+                                            style={{ width: '100%', height: '100%' }}
+                                        />
+                                    </div>
+                                    <p className="checkout__qr-label">Scan to pay</p>
+                                </div>
+                            </div>
+
+                            <p style={{ fontSize: '0.8rem', color: 'var(--color-success, #4ade80)', textAlign: 'center', margin: '8px 0 16px' }}>
+                                ✅ Order {orderId} — Delivering to {email}
+                            </p>
+
+                            <button
+                                className="btn btn-primary btn-lg checkout__confirm-btn"
+                                onClick={handleConfirmPayment}
+                                id="confirm-payment-btn"
+                            >
+                                I've Sent the Payment
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── STEP 3: Processing / Verifying ── */}
                 {step === 'processing' && (
                     <div className="checkout__processing animate-fade-in-up">
                         <div className="glass-card checkout__processing-card">
                             <div className="checkout__spinner"></div>
                             <h2>Verifying Payment...</h2>
                             <p>Confirming your {crypto.symbol} transaction</p>
-                            {orderId && (
-                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                                    Order: {orderId}
-                                </p>
-                            )}
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                                Order: {orderId}
+                            </p>
                             <div className="checkout__countdown">
                                 <span className="checkout__countdown-num">{countdown}</span>
                                 <span className="checkout__countdown-label">seconds remaining</span>
@@ -271,22 +257,23 @@ export default function CheckoutPage() {
                             <div className="checkout__progress-bar">
                                 <div
                                     className="checkout__progress-fill"
-                                    style={{ width: `${((5 - countdown) / 5) * 100}%` }}
+                                    style={{ width: `${(1 - countdown / 600) * 100}%` }}
                                 />
                             </div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
+                                This page checks automatically every 5 seconds. Do not close this tab.
+                            </p>
                         </div>
                     </div>
                 )}
 
-                {/* Success Step */}
+                {/* ── STEP 4: Success ── */}
                 {step === 'success' && (
                     <div className="checkout__success animate-fade-in-up">
                         <div className="glass-card checkout__success-card">
                             <div className="checkout__success-check">✓</div>
                             <h2 className="checkout__success-title">Payment Confirmed!</h2>
-                            <p className="checkout__success-subtitle">
-                                Your {brand.name} is ready
-                            </p>
+                            <p className="checkout__success-subtitle">Your {brand.name} is ready</p>
 
                             {brand.category === 'Virtual Cards' ? (
                                 <div className="virtual-card-container">
@@ -314,8 +301,7 @@ export default function CheckoutPage() {
                                         className="btn btn-secondary sm checkout__gift-code-copy"
                                         onClick={() => {
                                             const [num, cvv, exp] = giftCode.split('|');
-                                            const text = `Card: ${num}\nCVV: ${cvv}\nExpiry: ${exp}`;
-                                            navigator.clipboard.writeText(text);
+                                            navigator.clipboard.writeText(`Card: ${num}\nCVV: ${cvv}\nExpiry: ${exp}`);
                                             setCopied(true);
                                             setTimeout(() => setCopied(false), 2000);
                                         }}
@@ -343,34 +329,26 @@ export default function CheckoutPage() {
 
                             <div className="checkout__success-details">
                                 <div className="checkout__success-detail">
-                                    <span>Order ID</span>
-                                    <span>{orderId}</span>
+                                    <span>Order ID</span><span>{orderId}</span>
                                 </div>
                                 <div className="checkout__success-detail">
-                                    <span>Product</span>
-                                    <span>{brand.name}</span>
+                                    <span>Product</span><span>{brand.name}</span>
                                 </div>
                                 <div className="checkout__success-detail">
                                     <span>Value</span>
                                     <span>{brand.currency === 'INR' ? '₹' : '$'}{amount}</span>
                                 </div>
                                 <div className="checkout__success-detail">
-                                    <span>Paid</span>
-                                    <span>{displayCryptoAmount} {crypto.symbol}</span>
+                                    <span>Paid</span><span>{cryptoPayAmount} {crypto.symbol}</span>
                                 </div>
                                 <div className="checkout__success-detail">
-                                    <span>Delivered to</span>
-                                    <span>{email}</span>
+                                    <span>Delivered to</span><span>{email}</span>
                                 </div>
                             </div>
 
                             <div className="checkout__success-actions">
-                                <Link to="/catalog" className="btn btn-primary">
-                                    Buy Another Card
-                                </Link>
-                                <Link to="/orders" className="btn btn-secondary">
-                                    View My Orders
-                                </Link>
+                                <Link to="/catalog" className="btn btn-primary">Buy Another Card</Link>
+                                <Link to="/orders" className="btn btn-secondary">View My Orders</Link>
                             </div>
                         </div>
                     </div>
