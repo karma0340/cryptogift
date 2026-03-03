@@ -151,25 +151,14 @@ router.post('/', async (req, res, next) => {
             order.crypto.paymentId = paymentData.paymentId.toString();
             await order.save();
         } catch (paymentError) {
-            console.warn('NOWPayments unavailable, using mock payment data');
-
-            const mockCryptoRates = { BTC: 0.000012, ETH: 0.00031, USDT: 1.0, SOL: 0.0067, BNB: 0.0015 };
-            const usdAmount = currency === 'INR' ? discountedAmount / 83 : discountedAmount;
-            const mockCryptoAmount = (usdAmount * (mockCryptoRates[cryptoCurrency] || 0.001)).toFixed(8);
-
-            const mockAddress = '0xa0507a6017425937d5e0fde532f21e009b4d6d4b';
-
-            order.crypto.amount = mockCryptoAmount;
-            order.crypto.paymentAddress = mockAddress;
-            order.crypto.paymentId = `mock_${Date.now()}`;
-            await order.save();
-
-            paymentData = {
-                paymentId: order.crypto.paymentId,
-                payAddress: mockAddress,
-                payAmount: mockCryptoAmount,
-                payCurrency: cryptoCurrency,
-            };
+            // NOWPayments failed - clean up the order and return a real error
+            // Never show mock/fake addresses to customers
+            console.error('NOWPayments failed:', paymentError.message);
+            await Order.findByIdAndDelete(order._id); // remove the orphan order
+            return res.status(503).json({
+                success: false,
+                error: 'Payment gateway is temporarily unavailable. Please try again in a few minutes.',
+            });
         }
 
         res.status(201).json({
