@@ -13,15 +13,17 @@ export default function CardDetailPage() {
     const [customAmount, setCustomAmount] = useState('');
     const [selectedCrypto, setSelectedCrypto] = useState(cryptoCurrencies[0]);
 
+    const PROCESSING_FEE_PERCENT = 2; // 2% processing fee
     const finalAmount = selectedAmount || (customAmount ? parseFloat(customAmount) : 0);
-    const discountedAmount = finalAmount * (1 - (brand?.discount || 0) / 100);
+    const processingFee = parseFloat((finalAmount * PROCESSING_FEE_PERCENT / 100).toFixed(2));
+    const totalAmount = parseFloat((finalAmount + processingFee).toFixed(2));
 
     const cryptoAmount = useMemo(() => {
         if (!finalAmount || !selectedCrypto) return 0;
         // Convert: if INR, first convert to USD (1 USD ≈ 83 INR)
-        const usdAmount = brand?.currency === 'INR' ? discountedAmount / 83 : discountedAmount;
+        const usdAmount = brand?.currency === 'INR' ? totalAmount / 83 : totalAmount;
         return (usdAmount * selectedCrypto.rate).toFixed(8);
-    }, [finalAmount, selectedCrypto, brand, discountedAmount]);
+    }, [finalAmount, selectedCrypto, brand, totalAmount]);
 
     if (!brand) {
         return (
@@ -42,7 +44,8 @@ export default function CardDetailPage() {
                 state: {
                     brand,
                     amount: finalAmount,
-                    discountedAmount,
+                    totalAmount,      // gift card value + processing fee
+                    processingFee,
                     crypto: selectedCrypto,
                     cryptoAmount,
                 },
@@ -79,11 +82,9 @@ export default function CardDetailPage() {
                             <h1 className="detail__title">{brand.name} Gift Card</h1>
                             <p className="detail__desc">{brand.description}</p>
 
-                            {brand.discount > 0 && (
-                                <div className="badge badge-green" style={{ marginTop: '12px' }}>
-                                    🎉 {brand.discount}% discount applied automatically
-                                </div>
-                            )}
+                            <div className="badge badge-green" style={{ marginTop: '12px' }}>
+                                ✅ Instant delivery after payment
+                            </div>
                         </div>
 
                         <div className="detail__features">
@@ -167,14 +168,12 @@ export default function CardDetailPage() {
                                     <span>Gift card value</span>
                                     <span>{brand.currency === 'INR' ? '₹' : '$'}{finalAmount.toFixed(2)}</span>
                                 </div>
-                                {brand.discount > 0 && (
-                                    <div className="detail__summary-row detail__summary-discount">
-                                        <span>Discount ({brand.discount}%)</span>
-                                        <span>-{brand.currency === 'INR' ? '₹' : '$'}{(finalAmount - discountedAmount).toFixed(2)}</span>
-                                    </div>
-                                )}
+                                <div className="detail__summary-row" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                    <span>Processing fee (2%)</span>
+                                    <span>+{brand.currency === 'INR' ? '₹' : '$'}{processingFee.toFixed(2)}</span>
+                                </div>
                                 <div className="detail__summary-row detail__summary-total">
-                                    <span>You pay</span>
+                                    <span>Total crypto charge</span>
                                     <span className="detail__crypto-price">
                                         {cryptoAmount} {selectedCrypto.symbol}
                                     </span>

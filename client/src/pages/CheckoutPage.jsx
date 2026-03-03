@@ -33,10 +33,9 @@ export default function CheckoutPage() {
 
     if (!state) return null;
 
-    const { brand, amount, crypto } = state;
+    const { brand, amount, totalAmount, processingFee, crypto } = state;
 
-    // STEP 1: User enters email → Click "Generate Payment Address"
-    // Backend creates order, NOWPayments returns REAL wallet address
+    // STEP 1: User enters email → Click "Pay with crypto"
     const handleGenerateAddress = async () => {
         if (!email) return;
         setLoading(true);
@@ -47,16 +46,17 @@ export default function CheckoutPage() {
                 brandId: brand.id,
                 brandName: brand.name,
                 amount: amount,
+                totalAmount: totalAmount || amount,
+                processingFee: processingFee || 0,
                 currency: brand.currency || 'USD',
-                discountPercent: brand.discount || 0,
                 cryptoCurrency: crypto.symbol,
                 email,
             });
 
             setOrderId(orderData.orderId);
-            setWalletAddress(orderData.payment.address);   // REAL address from NOWPayments ✅
-            setCryptoPayAmount(orderData.payment.amount);  // REAL crypto amount ✅
-            setStep('address'); // Move to show the real address
+            setWalletAddress(orderData.payment.address);
+            setCryptoPayAmount(orderData.payment.amount);
+            setStep('address');
         } catch (err) {
             console.error('Order creation failed:', err);
             setError('Failed to generate payment address. Please try again.');

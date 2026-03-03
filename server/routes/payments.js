@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/Order');
 const nowPayments = require('../services/nowPayments');
 const reloadly = require('../services/reloadly');
+const emailService = require('../services/emailService');
 const { AppError } = require('../middleware/errorHandler');
 
 /**
@@ -44,9 +45,15 @@ router.post('/webhook', async (req, res, next) => {
             case 'confirming':
             case 'confirmed':
             case 'sending':
-                order.status = 'payment_received';
-                order.paidAt = new Date();
-                await order.save();
+                if (order.status !== 'payment_received') {
+                    order.status = 'payment_received';
+                    order.paidAt = new Date();
+                    await order.save();
+                    // Notify admin to fulfill this order
+                    emailService.sendAdminOrderNotification(order).catch(e =>
+                        console.error('Admin notification failed:', e.message)
+                    );
+                }
                 break;
 
             case 'finished':
