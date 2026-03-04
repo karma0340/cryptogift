@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const config = require('./config/env');
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -17,47 +16,52 @@ const app = express();
 // ========== MIDDLEWARE ==========
 
 // Security headers
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable for demo to avoid blocking issues
+}));
 
-// CORS - Allowing all for demo to fix "Failed to fetch"
+// CORS - Open for Demo
 app.use(cors({
-    origin: true, // Dynamically allow any origin
+    origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));
-
-// Request logging
-if (config.nodeEnv === 'development') {
-    app.use(morgan('dev'));
-}
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Database Connection (Middleware for Serverless)
+// Optimized Database Connection for Vercel (Serverless)
+let cachedDb = null;
 const connectDB = async () => {
+    if (cachedDb && mongoose.connection.readyState === 1) return cachedDb;
+
     try {
-        if (mongoose.connection.readyState >= 1) return;
         console.log('🔌 Connecting to MongoDB...');
-        // Add timeout to connection attempt
-        await mongoose.connect(config.mongodbUri, {
+        // If URI is missing, don't attempt to connect to localhost on Vercel
+        if (!process.env.MONGODB_URI) {
+            console.warn('⚠️ MONGODB_URI is missing. Database features will not work.');
+            return null;
+        }
+
+        const db = await mongoose.connect(process.env.MONGODB_URI, {
             serverSelectionTimeoutMS: 5000,
+            connectTimeoutMS: 10000,
         });
+        
+        cachedDb = db;
         console.log('✅ MongoDB connected successfully');
+        return db;
     } catch (error) {
         console.error('❌ MongoDB Connection Error:', error.message);
-        console.log('⚠️ Running in "No-DB" mode. Database features will fail, but the server is UP.');
+        return null;
     }
 };
 
+// Middleware to ensure DB connection
 app.use(async (req, res, next) => {
-    try {
-        await connectDB();
-        next();
-    } catch (error) {
-        next(error);
-    }
+    await connectDB();
+    next();
 });
 
 // ========== ROUTES ==========
@@ -66,11 +70,8 @@ app.use(async (req, res, next) => {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
-        environment: config.nodeEnv,
         timestamp: new Date().toISOString(),
-        services: {
-            database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-        },
+        db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     });
 });
 
@@ -80,53 +81,24 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/giftcards', giftcardRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Root handling for Vercel Preview
+// Root handling
 app.get('/', (req, res) => {
-    res.json({ success: true, message: 'CryptoGift API is running. Access /api/health for status.' });
+    res.json({ success: true, message: 'CryptoGift API is online' });
 });
 
 app.get('/api', (req, res) => {
-    res.json({ success: true, message: 'CryptoGift API is running. Access /api/health for status.' });
-});
-
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        error: `Route ${req.originalUrl} not found`,
-    });
+    res.json({ success: true, message: 'CryptoGift API is online' });
 });
 
 // Error handler
 app.use(errorHandler);
 
-// ========== SERVER STARTUP ==========
-
 // Start server locally
-if (process.env.NODE_ENV !== 'production') {
-    connectDB();
+if (process.env.NODE_ENV !== 'production' && require.main === module) {
     app.listen(config.port, () => {
-        console.log(`\n🚀 CryptoGift API Server`);
-        console.log(`   Environment: ${config.nodeEnv}`);
-        console.log(`   Port:        ${config.port}`);
-        console.log(`   API URL:     http://localhost:${config.port}/api`);
-        console.log(`   Health:      http://localhost:${config.port}/api/health`);
-        console.log(`   Frontend:    ${config.frontendUrl}\n`);
+        console.log(`🚀 Local Server: http://localhost:${config.port}`);
     });
 }
 
-// Handle graceful shutdown
-process.on('SIGTERM', async () => {
-    console.log('SIGTERM received. Shutting down...');
-    await mongoose.connection.close();
-    process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-    console.log('\nSIGINT received. Shutting down...');
-    await mongoose.connection.close();
-    process.exit(0);
-});
-
-// Export the Express app for Vercel
+// Export for Vercel
 module.exports = app;
