@@ -59,7 +59,7 @@ export default function CheckoutPage() {
             setStep('address');
         } catch (err) {
             console.error('Order creation failed:', err);
-            setError('Failed to generate payment address. Please try again.');
+            setError(err.message || 'Failed to generate payment address. Please try again.');
         } finally {
             setLoading(false);
         }

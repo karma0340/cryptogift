@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const nowPayments = require('../services/nowPayments');
+const tremendous = require('../services/tremendous');
 const { AppError } = require('../middleware/errorHandler');
 
 /**
@@ -155,12 +156,14 @@ router.post('/', async (req, res, next) => {
             await order.save();
         } catch (paymentError) {
             // NOWPayments failed - clean up the order and return a real error
-            // Never show mock/fake addresses to customers
             console.error('NOWPayments failed:', paymentError.message);
             await Order.findByIdAndDelete(order._id); // remove the orphan order
+
+            // Check if it's a known error from the service
+            const errorMsg = paymentError.response?.data?.message || paymentError.message;
             return res.status(503).json({
                 success: false,
-                error: 'Payment gateway is temporarily unavailable. Please try again in a few minutes.',
+                error: `Payment gateway error: ${errorMsg}`,
             });
         }
 
@@ -199,22 +202,20 @@ router.get('/:orderId', async (req, res, next) => {
             try {
                 const statusData = await nowPayments.getPaymentStatus(order.crypto.paymentId);
 
+                // Use the new tremendous service for fulfillment
                 if (statusData.status === 'finished' && order.status !== 'completed') {
-                    // Payment was finished but webhook was missed! 
-                    // Buy the card now.
                     console.log(`Auto-sync: Order ${order.orderId} found as FINISHED. Fulfilling...`);
 
-                    const reloadly = require('../services/reloadly');
-                    const result = await reloadly.orderGiftCard({
-                        productId: order.brand.id,
-                        quantity: 1,
-                        unitPrice: order.discountedAmount,
-                        customIdentifier: order.orderId,
+                    const result = await tremendous.createReward({
                         recipientEmail: order.email,
+                        amount: order.amount,
+                        orderId: order.orderId
                     });
 
-                    order.giftCardCode = result.redeemCode;
-                    order.giftCardPin = result.pinCode;
+                    if (result.redeemCode) {
+                        order.giftCardCode = result.redeemCode;
+                        order.giftCardPin = result.pinCode;
+                    }
                     order.status = 'completed';
                     order.completedAt = new Date();
                     await order.save();
@@ -246,7 +247,7 @@ router.get('/:orderId', async (req, res, next) => {
                 crypto: {
                     currency: order.crypto.currency,
                     amount: order.crypto.amount,
-                    address: order.crypto.paymentAddress, // Added address to return
+                    address: order.crypto.paymentAddress,
                 },
                 email: order.email,
                 status: order.status,
