@@ -84,7 +84,7 @@ class EmailService {
             return;
         }
 
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+        const adminEmail = 'support.cryptogift@proton.me';
         const adminDashboardUrl = process.env.FRONTEND_URL
             ? `${process.env.FRONTEND_URL}/admin`
             : 'https://cryptogift-murex.vercel.app/admin';
