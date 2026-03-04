@@ -46,8 +46,6 @@ export default function CheckoutPage() {
                 brandId: brand.id,
                 brandName: brand.name,
                 amount: amount,
-                totalAmount: totalAmount || amount,
-                processingFee: processingFee || 0,
                 currency: brand.currency || 'USD',
                 cryptoCurrency: crypto.symbol,
                 email,

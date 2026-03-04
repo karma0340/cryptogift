@@ -13,10 +13,8 @@ export default function CardDetailPage() {
     const [customAmount, setCustomAmount] = useState('');
     const [selectedCrypto, setSelectedCrypto] = useState(cryptoCurrencies[0]);
 
-    const PROCESSING_FEE_PERCENT = 2; // 2% processing fee
     const finalAmount = selectedAmount || (customAmount ? parseFloat(customAmount) : 0);
-    const processingFee = parseFloat((finalAmount * PROCESSING_FEE_PERCENT / 100).toFixed(2));
-    const totalAmount = parseFloat((finalAmount + processingFee).toFixed(2));
+    const totalAmount = finalAmount; // No processing fee as per user request
 
     const cryptoAmount = useMemo(() => {
         if (!finalAmount || !selectedCrypto) return 0;
@@ -44,8 +42,8 @@ export default function CardDetailPage() {
                 state: {
                     brand,
                     amount: finalAmount,
-                    totalAmount,      // gift card value + processing fee
-                    processingFee,
+                    totalAmount,
+                    processingFee: 0,
                     crypto: selectedCrypto,
                     cryptoAmount,
                 },
@@ -167,10 +165,6 @@ export default function CardDetailPage() {
                                 <div className="detail__summary-row">
                                     <span>Gift card value</span>
                                     <span>{brand.currency === 'INR' ? '₹' : '$'}{finalAmount.toFixed(2)}</span>
-                                </div>
-                                <div className="detail__summary-row" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                    <span>Processing fee (2%)</span>
-                                    <span>+{brand.currency === 'INR' ? '₹' : '$'}{processingFee.toFixed(2)}</span>
                                 </div>
                                 <div className="detail__summary-row detail__summary-total">
                                     <span>Total crypto charge</span>

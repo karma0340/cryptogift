@@ -108,9 +108,9 @@ router.post('/', async (req, res, next) => {
             throw new AppError('Amount must be greater than 0', 400);
         }
 
-        // Use totalAmount (gift card value + processing fee), falling back to amount
-        const chargeAmount = totalAmount || amount;
-        const fee = processingFee || 0;
+        // All fees removed as per user request
+        const chargeAmount = amount;
+        const fee = 0;
 
         // Map crypto currency names to NOWPayments format
         const cryptoMap = {

@@ -8,11 +8,11 @@ const api = {
     /**
      * Create a new order
      */
-    async createOrder({ brandId, brandName, amount, totalAmount, processingFee, currency, cryptoCurrency, email }) {
+    async createOrder({ brandId, brandName, amount, currency, cryptoCurrency, email }) {
         const res = await fetch(`${API_BASE}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ brandId, brandName, amount, totalAmount, processingFee, currency, cryptoCurrency, email }),
+            body: JSON.stringify({ brandId, brandName, amount, currency, cryptoCurrency, email }),
         });
 
         // Handle non-OK responses
