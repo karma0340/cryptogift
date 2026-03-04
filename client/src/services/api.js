@@ -1,4 +1,6 @@
-const API_BASE = 'https://cryptogift-jj7h.vercel.app/api';
+const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:5000/api'
+    : 'https://cryptogift-jj7h.vercel.app/api';
 
 const api = {
     /**
