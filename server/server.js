@@ -19,9 +19,9 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-// CORS
+// CORS - Allowing all for demo to fix "Failed to fetch"
 app.use(cors({
-    origin: config.frontendUrl,
+    origin: true, // Dynamically allow any origin
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));

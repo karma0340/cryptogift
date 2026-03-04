@@ -1,6 +1,8 @@
 const API_BASE = window.location.hostname === 'localhost'
     ? 'http://localhost:5000/api'
-    : 'https://cryptogift-jj7h.vercel.app/api';
+    : window.location.origin.includes('cryptogift-jj7h')
+        ? '/api'
+        : 'https://cryptogift-jj7h.vercel.app/api';
 
 const api = {
     /**
@@ -12,8 +14,21 @@ const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ brandId, brandName, amount, totalAmount, processingFee, currency, cryptoCurrency, email }),
         });
+
+        // Handle non-OK responses
+        if (!res.ok) {
+            let errorMsg = 'Failed to create order';
+            try {
+                const errorData = await res.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+                // Fallback if not JSON
+                errorMsg = `Server Error: ${res.status} ${res.statusText}`;
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Failed to create order');
         return data.data;
     },
 
@@ -22,8 +37,8 @@ const api = {
      */
     async getOrder(orderId) {
         const res = await fetch(`${API_BASE}/orders/${orderId}`);
+        if (!res.ok) throw new Error('Order not found');
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Order not found');
         return data.data;
     },
 
@@ -34,8 +49,8 @@ const api = {
         const params = new URLSearchParams({ page });
         if (email) params.append('email', email);
         const res = await fetch(`${API_BASE}/orders?${params}`);
+        if (!res.ok) throw new Error('Failed to fetch orders');
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Failed to fetch orders');
         return data.data;
     },
 
@@ -48,8 +63,8 @@ const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ orderId }),
         });
+        if (!res.ok) throw new Error('Simulation failed');
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Simulation failed');
         return data.data;
     },
 
@@ -58,8 +73,8 @@ const api = {
      */
     async getEstimate(amount, from = 'usd', to = 'btc') {
         const res = await fetch(`${API_BASE}/payments/estimate?amount=${amount}&from=${from}&to=${to}`);
+        if (!res.ok) throw new Error('Estimate failed');
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Estimate failed');
         return data.data;
     },
 
@@ -71,8 +86,8 @@ const api = {
         if (category && category !== 'All') params.append('category', category);
         if (search) params.append('search', search);
         const res = await fetch(`${API_BASE}/giftcards?${params}`);
+        if (!res.ok) throw new Error('Failed to fetch gift cards');
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Failed to fetch gift cards');
         return data.data;
     },
 
